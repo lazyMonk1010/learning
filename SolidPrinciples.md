@@ -435,3 +435,28 @@ var orderService2 = new OrderService(smsService);
 | **Interface Segregation** | Many specific interfaces > one general interface | Classes only implement what they need |
 | **Dependency Inversion** | Depend on abstractions, not concretions | Flexible and testable code |
 
+---
+
+## Short Interview Prep Questions Set
+
+### Easy Level
+- What does SOLID stand for?
+- Which SOLID principle focuses on giving a class only one responsibility?
+- Which principle says software entities should be open for extension but closed for modification?
+- Which principle encourages depending on abstractions instead of concrete classes?
+- Which principle helps reduce large, “fat” interfaces?
+  
+### Medium Level
+
+- A class handles user authentication, logging, and sending emails. Which SOLID principle is violated ?
+- A payment system uses many if-else statements to handle CreditCard, UPI, and Wallet payments. Which principle is likely violated? How could you improve it?
+- A subclass overrides a method and throws NotImplementedException because it doesn’t need that behavior. Which principle does this violate?
+- A class is forced to implement interface methods it never uses. Which principle is violated? Why does Dependency Inversion make unit testing easier?
+
+### Hard Level (Scenario-Based)
+
+- You are designing a notification system that supports Email, SMS, and Push notifications. Which SOLID principles would you apply? How?
+- A ReportService generates reports and also saves them to a database. Identify the violation Suggest a better design
+- You are building a system where new discount types are added frequently. How would you design it using SOLID?
+- A base Bird class has a Fly() method, but a Penguin subclass cannot fly. Which principle is violated? How would you redesign it?
+- A large interface IWorker has methods for Code(), Test(), Deploy(), and ManageTeam(). Different roles only use some of these. Which principle is violated? What’s the fix?
