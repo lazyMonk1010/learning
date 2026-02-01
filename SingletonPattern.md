@@ -331,6 +331,150 @@ class Cache {
 
 ---
 
+## More Singleton Variants (Interview Checklist)
+
+You already saw **lazy** (manual) and **Lazy&lt;T&gt;** above. Interviewers often expect you to name these other variants too, even if you don’t recommend them.
+
+### Eager Initialization
+
+The instance is created **at class load time**, before any thread can request it.
+
+```csharp
+public sealed class Singleton
+{
+    private static readonly Singleton instance = new Singleton();
+
+    private Singleton() { }
+
+    public static Singleton GetInstance() => instance;
+}
+```
+
+**Pros:** Simple, thread-safe (static initialization in .NET).  
+**Cons:** Instance is created even if never used; no lazy loading.
+
+### Static Constructor–Based Singleton
+
+The static constructor runs **at most once** per AppDomain; the runtime guarantees thread-safe type initialization.
+
+```csharp
+public sealed class Singleton
+{
+    private static readonly Singleton instance;
+
+    static Singleton()
+    {
+        instance = new Singleton();
+    }
+
+    private Singleton() { }
+
+    public static Singleton GetInstance() => instance;
+}
+```
+
+**Pros:** Thread-safe, explicit init logic.  
+**Cons:** Still eager—runs when first static member is accessed.
+
+---
+
+## How Singleton Can Be Broken (Classic Follow-Up)
+
+Singletons can be bypassed or duplicated in several ways. Interviewers love this topic.
+
+### 1. Reflection
+
+Reflection can invoke the private constructor and create a second instance.
+
+```csharp
+var flags = BindingFlags.Instance | BindingFlags.NonPublic;
+var ctor = typeof(Singleton).GetConstructor(flags, null, Type.EmptyTypes, null);
+var second = (Singleton)ctor.Invoke(null);
+```
+
+**Mitigation:** In the private constructor, check if the instance already exists and throw; or keep a static flag. Not foolproof but raises the bar.
+
+### 2. Serialization / Deserialization
+
+If the singleton is **serializable**, deserialization creates a **new object**, so you get two “singletons.”
+
+**Mitigation:** Implement `ISerializable` and in deserialization return the existing instance, or avoid making the type serializable.
+
+### 3. Cloning
+
+If the class implements `ICloneable` or exposes a copy, cloning can create a second instance.
+
+**Mitigation:** Don’t implement `ICloneable`, or in `Clone()` return the same instance (`return GetInstance();`).
+
+### 4. Multiple AppDomains / Processes
+
+- **Multiple AppDomains:** Each has its own static state → one instance **per AppDomain**, not one per process.
+- **Multiple processes:** Each process has its own memory → one instance **per process**, not one for the whole machine.
+
+True process-wide or machine-wide “single instance” usually needs something outside the type (e.g. named mutex, single-instance app logic).
+
+---
+
+## Limitations of Singleton (Why People Dislike It)
+
+Without this, it can sound like you think Singleton is always good—a red flag in senior interviews.
+
+- **Global state** — Singleton is effectively global mutable state; any code can change it, making behavior hard to reason about.
+- **Tight coupling** — Classes that call `Singleton.GetInstance()` are coupled to that concrete type; swapping implementation is hard.
+- **Hard to unit test** — Replacing the singleton with a mock is difficult; tests that share the same singleton can interfere with each other.
+- **Hidden dependencies** — The constructor doesn’t show that the class uses a singleton; you have to read the code to see it.
+
+So: use sparingly; prefer **Dependency Injection** for new code.
+
+---
+
+## Singleton vs Dependency Injection (Modern C# Reality)
+
+In modern C# we **rarely write manual singletons**. DI containers manage “single instance” lifetime for us.
+
+**Manual Singleton:** Hidden dependency, tight coupling.
+
+```csharp
+public void Process(Order order)
+{
+    var logger = Logger.GetInstance();  // hidden, hard to test
+    logger.Log("Processing...");
+}
+```
+
+**With DI:** Dependency is explicit and injectable; container can register the logger as singleton.
+
+```csharp
+public OrderService(ILogger logger)  // explicit, testable
+{
+    _logger = logger;
+}
+// In startup: services.AddSingleton<ILogger, FileLogger>();
+```
+
+**Benefits of DI:** Explicit dependencies, easy to test (inject mocks), no global state from the consumer’s perspective. Prefer **DI + singleton registration** over manual Singleton in new code.
+
+---
+
+## Database Connection: Important Caveat
+
+**A single DB connection held as a singleton is usually wrong.**
+
+- One connection doesn’t scale and is often not thread-safe for concurrent use.
+- Connections should be short-lived: open, use, close/dispose.
+
+**What is fine:** A **connection manager** or **factory** (singleton) that **creates and returns** connections—or uses built-in connection pooling. The singleton is the factory; the connections themselves are created and disposed per use. Interviewers like to catch “one shared connection as singleton.”
+
+---
+
+## Language-Specific Details (Shows Fluency)
+
+- **`sealed`** — Prevents inheritance so a subclass can’t expose another constructor or create a different “singleton” lineage.
+- **Instance property vs GetInstance()** — Both valid; in C# a read-only property (`public static Singleton Instance => instance.Value;`) is often preferred for style; `GetInstance()` is familiar from Java/GoF.
+- **Why Lazy&lt;T&gt; is thread-safe** — It uses **double-check locking** (or equivalent) internally. By default `LazyThreadSafetyMode.ExecutionAndPublication` guarantees exactly one execution of the factory and one published instance; other threads block until the value is set, then read the same instance.
+
+---
+
 ## Summary
 
 ### Key Points
@@ -350,8 +494,15 @@ class Cache {
 
 ### Common Use Cases
 
-- Database connections
+- Database connections (use a connection factory/pool, not a single connection as singleton)
 - Logger services
 - Configuration managers
 - Thread pools
 - Cache systems
+
+### Also Remember (for interviews)
+
+- **Variants:** Eager, static constructor, lazy, double-check locking, Lazy&lt;T&gt; — know them; prefer Lazy&lt;T&gt; if hand-rolling.
+- **Singleton can be broken:** Reflection, serialization, cloning, multiple AppDomains/processes.
+- **Limitations:** Global state, tight coupling, hard to test, hidden dependencies.
+- **Modern C#:** Prefer **Dependency Injection** and singleton lifetime in a DI container over manual Singleton.
